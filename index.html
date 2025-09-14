@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cámara con Reconocimiento de Voz</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        video, canvas {
+            border: 2px solid #333;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .estado {
+            font-size: 18px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Captura de Fotos por Voz</h1>
+    
+    <div>
+        <video id="video" width="400" height="300" autoplay></video>
+    </div>
+    
+    <div>
+        <button id="btnIniciar" onclick="iniciarCamara()">Iniciar Cámara</button>
+        <button id="btnVoz" onclick="iniciarReconocimientoVoz()">Activar Reconocimiento de Voz</button>
+    </div>
+    
+    <div class="estado" id="estado">Presiona "Iniciar Cámara" para comenzar</div>
+    
+    <div>
+        <canvas id="canvas" width="400" height="300" style="display:none;"></canvas>
+    </div>
+    
+    <div>
+        <button id="btnDescargar" onclick="descargarFoto()" style="display:none;">Descargar Foto</button>
+    </div>
+
+    <script>
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let reconocimiento;
+        let fotoCapturada = false;
+
+        function iniciarCamara() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(stream) {
+                    video.srcObject = stream;
+                    document.getElementById('estado').textContent = 'Cámara iniciada. Ahora activa el reconocimiento de voz';
+                    document.getElementById('btnIniciar').style.display = 'none';
+                })
+                .catch(function(error) {
+                    document.getElementById('estado').textContent = 'Error al acceder a la cámara';
+                });
+        }
+
+        function iniciarReconocimientoVoz() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                reconocimiento.lang = 'es-ES';
+                reconocimiento.continuous = true;
+                reconocimiento.interimResults = false;
+
+                reconocimiento.onstart = function() {
+                    document.getElementById('estado').textContent = 'Escuchando... Di "foto" para capturar';
+                    document.getElementById('btnVoz').textContent = 'Detener Reconocimiento';
+                    document.getElementById('btnVoz').onclick = detenerReconocimientoVoz;
+                };
+
+                reconocimiento.onresult = function(event) {
+                    let transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+                    if (transcript.includes('foto')) {
+                        capturarFoto();
+                    }
+                };
+
+                reconocimiento.onerror = function(event) {
+                    document.getElementById('estado').textContent = 'Error en reconocimiento de voz';
+                };
+
+                reconocimiento.start();
+            } else {
+                document.getElementById('estado').textContent = 'Tu navegador no soporta reconocimiento de voz';
+            }
+        }
+
+        function detenerReconocimientoVoz() {
+            if (reconocimiento) {
+                reconocimiento.stop();
+                document.getElementById('estado').textContent = 'Reconocimiento de voz detenido';
+                document.getElementById('btnVoz').textContent = 'Activar Reconocimiento de Voz';
+                document.getElementById('btnVoz').onclick = iniciarReconocimientoVoz;
+            }
+        }
+
+        function capturarFoto() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.style.display = 'block';
+            document.getElementById('btnDescargar').style.display = 'inline-block';
+            document.getElementById('estado').textContent = 'Foto capturada! Puedes descargarla';
+            fotoCapturada = true;
+        }
+
+        function descargarFoto() {
+            if (fotoCapturada) {
+                let enlace = document.createElement('a');
+                enlace.download = 'foto_capturada.png';
+                enlace.href = canvas.toDataURL();
+                enlace.click();
+            }
+        }
+    </script>
+</body>
+</html>
